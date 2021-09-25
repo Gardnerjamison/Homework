@@ -6,16 +6,15 @@ from bit import PrivateKeyTestnet
 from bit.network import NetworkAPI
 from web3 import Web3, middleware, Account
 from web3.gas_strategies.time_based import medium_gas_price_strategy
-#from web3.middleware import geth_poa_miiddleware
 from dotenv import load_dotenv
 
 
-# Load and set environment variables
+# set environment variables
 load_dotenv()
 mnemonic=os.getenv("MNEMONIC")
  
  
-# Create a function called `derive_wallets`
+# Derive_wallet function - 
 def derive_wallets(mnemonic, num, coin):
     command = f'php ./derive -g --mnemonic="{mnemonic}" --numderive="{num}" --coin="{coin}" --format=json'
     p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
@@ -24,7 +23,7 @@ def derive_wallets(mnemonic, num, coin):
     keys = json.loads(output)
     return keys
 
-# Create a dictionary object called coins to store the output from `derive_wallets`.
+# wallet dict - 
 coins = {'eth', 'btc', 'btc-test'}
 numderive = 3
 
@@ -32,14 +31,14 @@ keys = {}
 for coin in coins:
     keys[coin]=derive_wallets(mnemonic, coin, numderive)
 
-# Create a function called `priv_key_to_account` that converts privkey strings to account objects.
+# priv_key_to_account function
 def priv_key_to_account(coin, priv_key):
     if coin == ETH:
         return Account.privateKeyToAccount(priv_key)
     elif coin == BTCTEST:
         return PrivateKeyTestNet(priv_key)
 
-# Create a function called `create_tx` that creates an unsigned transaction appropriate metadata.
+# create_tx function
 def create_tx(coin, account, recipient, amount):
     if coin == ETH:
         gasEstimate = w3.eth.estimateGas(
@@ -56,7 +55,7 @@ def create_tx(coin, account, recipient, amount):
     elif coin == BTCTEST:
         return PrivateKeyTestnet.prepare_transaction(account.address,[(recipient, amount, BTC)])
 
-# Create a function called `send_tx` that calls `create_tx`, signs and sends the transaction.
+# send_tx function to call the create_tx
 def send_tx(coin, account, recipient, amount):
     txn = create_tx(coin, account, recipient, amount)
     if coin == ETH:
