@@ -1,0 +1,21 @@
+{
+  "marketplace_id": "EBAY_US",
+  "currency": "USD",
+  "environment": "production",
+  "category_ids": ["180349"],
+  "results_per_search": 50,
+  "sort": "newlyListed",
+  "searches": [
+    { "name": "Necron Warriors", "query": "Necron Warriors", "min_price": null, "max_price": null },
+    { "name": "Space Marine Intercessors", "query": "Space Marine Intercessors", "min_price": null, "max_price": 60 }
+  ],
+  "filters": {
+    "exclude_bits": true,
+    "exclude_bodyparts": true,
+    "exclude_accessories": true,
+    "exclude_books_paper": true,
+    "exclude_recast_3dprint": true,
+    "extra_exclude_terms": [],
+    "allow_terms": []
+  }
+}

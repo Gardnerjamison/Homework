@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warhammer eBay Scanner</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>⚔️ Warhammer eBay Scanner</h1>
+  <p class="tagline">Full units only &mdash; no bits, no codexes, no recasts.</p>
+</header>
+
+{% if not creds_ok %}
+<div class="banner warn">
+  <strong>eBay credentials not set.</strong>
+  Set <code>EBAY_CLIENT_ID</code> and <code>EBAY_CLIENT_SECRET</code>
+  (see the README) and restart, or results won't load.
+</div>
+{% endif %}
+
+<section class="controls">
+  <form id="add-form">
+    <input type="text" id="f-name" placeholder="Label (optional)">
+    <input type="text" id="f-query" placeholder="Search e.g. Necron Warriors" required>
+    <input type="number" id="f-min" placeholder="Min $" min="0" step="1">
+    <input type="number" id="f-max" placeholder="Max $" min="0" step="1">
+    <button type="submit">+ Watch</button>
+  </form>
+  <button id="refresh" class="ghost">⟳ Refresh</button>
+</section>
+
+<main id="results">
+  {% if not cfg.searches %}
+  <p class="empty">No minis watched yet. Add one above (e.g. "Lychguard",
+  "Custodian Guard", "Terminator Squad").</p>
+  {% endif %}
+</main>
+
+<footer>
+  <p>Showing eBay <code>{{ cfg.marketplace_id }}</code> results.
+  Filters: bits, body-parts, accessories, paper &amp; recasts are hidden.
+  Tune them in <code>config.json</code>.</p>
+</footer>
+
+<script>
+const RESULTS = document.getElementById('results');
+
+function card(item) {
+  const price = item.price != null
+    ? `${item.currency || ''} ${item.price.toFixed(2)}` : '—';
+  const ship = item.shipping === 0 ? 'Free shipping'
+    : (item.shipping != null ? `+${item.currency||''} ${item.shipping.toFixed(2)} ship` : '');
+  const img = item.image
+    ? `<img src="${item.image}" alt="" loading="lazy">`
+    : `<div class="noimg">no image</div>`;
+  return `<a class="card" href="${item.url}" target="_blank" rel="noopener">
+      ${img}
+      <div class="meta">
+        <div class="title">${escapeHtml(item.title)}</div>
+        <div class="row"><span class="price">${price}</span>
+          <span class="cond">${escapeHtml(item.condition)}</span></div>
+        <div class="sub">${ship}${item.location ? ' · '+item.location : ''}</div>
+      </div>
+    </a>`;
+}
+
+function group(g, idx) {
+  const cards = g.kept.length
+    ? g.kept.map(card).join('')
+    : `<p class="empty">No full-unit listings right now.</p>`;
+  return `<section class="grp">
+    <div class="grp-head">
+      <h2>${escapeHtml(g.name)}</h2>
+      <span class="count">${g.kept.length} kept · ${g.filtered_out} junk hidden</span>
+      <button class="del" data-idx="${idx}" title="Stop watching">✕</button>
+    </div>
+    <div class="grid">${cards}</div>
+  </section>`;
+}
+
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function load(force) {
+  RESULTS.innerHTML = '<p class="empty">Scanning eBay…</p>';
+  try {
+    const r = await fetch('/api/results' + (force ? '?refresh=1' : ''));
+    const data = await r.json();
+    if (data.error) { RESULTS.innerHTML = `<div class="banner warn">${escapeHtml(data.error)}</div>`; return; }
+    let html = (data.groups||[]).map(group).join('');
+    (data.errors||[]).forEach(e => {
+      html += `<div class="banner warn">${escapeHtml(e.name||'')}: ${escapeHtml(e.error)}</div>`;
+    });
+    RESULTS.innerHTML = html || '<p class="empty">No watched minis. Add one above.</p>';
+    document.querySelectorAll('.del').forEach(b =>
+      b.onclick = () => del(b.dataset.idx));
+  } catch (e) {
+    RESULTS.innerHTML = `<div class="banner warn">Failed to load: ${escapeHtml(String(e))}</div>`;
+  }
+}
+
+document.getElementById('add-form').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const body = {
+    name: document.getElementById('f-name').value,
+    query: document.getElementById('f-query').value,
+    min_price: document.getElementById('f-min').value,
+    max_price: document.getElementById('f-max').value,
+  };
+  await fetch('/api/searches', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  ev.target.reset();
+  load(true);
+};
+
+async function del(idx) {
+  await fetch('/api/searches/' + idx, {method:'DELETE'});
+  load(false);
+}
+
+document.getElementById('refresh').onclick = () => load(true);
+load(false);
+</script>
+</body>
+</html>
