@@ -1,6 +1,7 @@
 {
   "marketplace_id": "EBAY_US",
   "currency": "USD",
+  "backend": "scrape",
   "environment": "production",
   "category_ids": ["180349"],
   "results_per_search": 50,

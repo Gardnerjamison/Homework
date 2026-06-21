@@ -12,6 +12,9 @@ DEFAULTS = {
     "marketplace_id": "EBAY_US",
     "currency": "USD",
     "environment": "production",
+    # "scrape" = parse eBay's search page (no account needed).
+    # "api"    = official eBay Browse API (needs EBAY_CLIENT_ID/SECRET).
+    "backend": "scrape",
     # 180349 = eBay "Toys & Hobbies > ... > Miniatures, War Games".
     # Restricting to this category strips out a lot of paint/book/merch noise
     # before our keyword filter even runs. Empty the list to search all.

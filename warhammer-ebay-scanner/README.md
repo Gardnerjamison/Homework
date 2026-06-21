@@ -15,39 +15,43 @@ images, prices and condition.
 
 ## How it works
 
-- Uses eBay's official **Browse API** (OAuth2 client-credentials flow — no
-  personal login, just free app keys).
+- Two interchangeable backends fetch listings (pick one in `config.json`):
+  - **`scrape`** (default) — parses eBay's normal search page. **No account
+    needed, works out of the box.**
+  - **`api`** — eBay's official **Browse API** (cleaner data, but needs free
+    developer keys; see below).
 - Restricts to eBay's *Miniatures, War Games* category to cut noise, then runs
   a keyword filter (`ebay_scanner/filters.py`) to drop non-models.
 - A small Flask app serves a dashboard at `http://127.0.0.1:5000`.
 
-## Setup (one time, ~10 min)
+## Setup
 
-### 1. Get free eBay API keys
-1. Go to <https://developer.ebay.com> and create an account.
-2. Create a **Production** keyset (Application Keys).
-3. Copy the **App ID (Client ID)** and **Cert ID (Client Secret)**.
-
-### 2. Install
 ```bash
 cd warhammer-ebay-scanner
 python -m venv .venv && source .venv/bin/activate   # optional but recommended
 pip install -r requirements.txt
-```
-
-### 3. Add your keys
-```bash
-cp .env.example .env
-# edit .env and paste your App ID / Cert ID
-```
-(Or export `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` as environment variables.)
-
-### 4. Run
-```bash
 python run.py
 ```
 Open <http://127.0.0.1:5000>. Type a unit (e.g. *Necron Warriors*, *Custodian
 Guard*, *Terminator Squad*), optionally a max price, and hit **Watch**.
+
+That's it — the default `scrape` backend needs no keys.
+
+> **Run it from a normal home connection.** eBay tends to return `403` to
+> datacenter / VPN / cloud IPs. If every search errors with a 403, that's why.
+
+### Optional: use the official API instead of scraping
+
+The API gives cleaner data (a real condition field, seller feedback) and is the
+sanctioned route. To use it:
+
+1. Get free keys at <https://developer.ebay.com> — create a **Production**
+   keyset and copy the **App ID (Client ID)** and **Cert ID (Client Secret)**.
+2. `cp .env.example .env` and paste them in (or export `EBAY_CLIENT_ID` /
+   `EBAY_CLIENT_SECRET`).
+3. Set `"backend": "api"` in `config.json`.
+
+You can switch between `scrape` and `api` anytime — same dashboard, same filters.
 
 ## Using it
 
@@ -96,3 +100,9 @@ place to look if a listing is being filtered when it shouldn't be.
   committed.
 - The filter is intentionally aggressive (better to miss a borderline listing
   than show you a page of bits). Loosen it via the toggles / `allow_terms`.
+- The `scrape` backend reads eBay's public search page. That's a gray area
+  under eBay's Terms of Service — fine for light personal use, but keep request
+  volume low (results are cached 5 min). If eBay restyles their results page
+  and parsing breaks, update the selectors in `scraper.parse_search_html`
+  (covered by `tests/test_scraper.py`). For heavy or commercial use, switch to
+  the official API backend.

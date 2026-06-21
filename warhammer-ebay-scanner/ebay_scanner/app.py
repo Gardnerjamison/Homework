@@ -14,7 +14,11 @@ except ImportError:
 
 from .config import load_config, save_config
 from .ebay_client import EbayClient, EbayError
+from .scraper import ScraperClient, ScraperError
 from .filters import filter_items
+
+# Both backends raise their own error type; treat them the same upstream.
+BackendError = (EbayError, ScraperError)
 
 app = Flask(__name__)
 
@@ -25,11 +29,16 @@ CACHE_TTL = 300
 
 
 def _client(cfg):
-    return EbayClient(
-        client_id=os.environ.get("EBAY_CLIENT_ID"),
-        client_secret=os.environ.get("EBAY_CLIENT_SECRET"),
+    if cfg.get("backend", "scrape") == "api":
+        return EbayClient(
+            client_id=os.environ.get("EBAY_CLIENT_ID"),
+            client_secret=os.environ.get("EBAY_CLIENT_SECRET"),
+            marketplace_id=cfg.get("marketplace_id", "EBAY_US"),
+            environment=cfg.get("environment", "production"),
+            currency=cfg.get("currency", "USD"),
+        )
+    return ScraperClient(
         marketplace_id=cfg.get("marketplace_id", "EBAY_US"),
-        environment=cfg.get("environment", "production"),
         currency=cfg.get("currency", "USD"),
     )
 
@@ -67,8 +76,12 @@ def _run_search(client, cfg, search, force=False):
 @app.route("/")
 def index():
     cfg = load_config()
-    creds_ok = bool(os.environ.get("EBAY_CLIENT_ID") and os.environ.get("EBAY_CLIENT_SECRET"))
-    return render_template("index.html", cfg=cfg, creds_ok=creds_ok)
+    # Scraper backend needs no credentials; only warn for the API backend.
+    needs_creds = cfg.get("backend", "scrape") == "api"
+    has_creds = bool(os.environ.get("EBAY_CLIENT_ID") and os.environ.get("EBAY_CLIENT_SECRET"))
+    creds_ok = (not needs_creds) or has_creds
+    return render_template("index.html", cfg=cfg, creds_ok=creds_ok,
+                           backend=cfg.get("backend", "scrape"))
 
 
 @app.route("/api/results")
@@ -77,7 +90,7 @@ def api_results():
     force = request.args.get("refresh") == "1"
     try:
         client = _client(cfg)
-    except EbayError as exc:
+    except BackendError as exc:
         return jsonify({"error": str(exc)}), 400
 
     groups, errors = [], []
@@ -86,7 +99,7 @@ def api_results():
             continue
         try:
             groups.append(_run_search(client, cfg, search, force=force))
-        except EbayError as exc:
+        except BackendError as exc:
             errors.append({"name": search.get("name"), "error": str(exc)})
     return jsonify({"groups": groups, "errors": errors})
 
